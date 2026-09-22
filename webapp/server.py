@@ -5,12 +5,10 @@ file next to this project and never sent anywhere except the official
 provider (Runway / Kling) they belong to.
 """
 import platform
-import shutil
-import uuid
 from pathlib import Path
 
 from dotenv import dotenv_values, set_key
-from fastapi import FastAPI, File, Form, UploadFile
+from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -25,7 +23,39 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 UPLOAD_DIR = config.OUTPUT_DIR / "_uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
+PORT = 8765
+ALLOWED_ORIGINS = {f"http://127.0.0.1:{PORT}", f"http://localhost:{PORT}"}
+
 app = FastAPI(title="Hero Studio")
+
+
+@app.middleware("http")
+async def same_origin_guard(request: Request, call_next):
+    """Block cross-site requests to every state-changing endpoint.
+
+    This is a local server with no login system, so nothing else stops a
+    malicious website from silently POSTing to it from a background tab -
+    confirmed live: an unguarded /api/update/apply let a plain cross-origin
+    POST trigger a real `git pull` + dependency reinstall with zero
+    friction. Browsers attach `Origin` on every cross-site POST/PUT/PATCH/
+    DELETE, so rejecting any request whose Origin doesn't match our own
+    closes that off without affecting same-origin use of the app itself
+    (same-origin requests either omit Origin or send ours).
+    """
+    if request.method in ("POST", "PUT", "PATCH", "DELETE"):
+        origin = request.headers.get("origin")
+        if origin and origin not in ALLOWED_ORIGINS:
+            return JSONResponse({"error": "Cross-site requests are not allowed."}, status_code=403)
+
+    response = await call_next(request)
+
+    # Clickjacking: without this, a malicious page could iframe the app and
+    # trick the admin into clicking through an invisible overlay onto e.g.
+    # the kill switch. No legitimate use of this app embeds it in a frame.
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Content-Security-Policy"] = "frame-ancestors 'none'"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 @app.get("/health")
@@ -178,6 +208,10 @@ async def prompt_helper(payload: dict):
     return result
 
 
+MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+ALLOWED_UPLOAD_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
+
+
 @app.post("/api/jobs")
 async def create_job(
     file: UploadFile = File(...),
@@ -193,11 +227,24 @@ async def create_job(
     if not lic["ok"]:
         return JSONResponse({"error": lic["reason"]}, status_code=403)
 
+    if not (file.content_type or "").startswith("image/"):
+        return JSONResponse({"error": "Only image uploads are allowed."}, status_code=400)
+
     job_id = pr.new_job_id()
-    suffix = Path(file.filename or "upload.jpg").suffix or ".jpg"
+    suffix = Path(file.filename or "upload.jpg").suffix.lower()
+    if suffix not in ALLOWED_UPLOAD_SUFFIXES:
+        suffix = ".jpg"
     dest = UPLOAD_DIR / f"{job_id}{suffix}"
+
+    written = 0
     with open(dest, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+        while chunk := await file.read(1 << 20):
+            written += len(chunk)
+            if written > MAX_UPLOAD_BYTES:
+                f.close()
+                dest.unlink(missing_ok=True)
+                return JSONResponse({"error": "Image is too large (25MB max)."}, status_code=413)
+            f.write(chunk)
 
     if provider == "runway" and not config.RUNWAYML_API_SECRET:
         return JSONResponse({"error": "No Runway API key configured. Add one in Settings first."}, status_code=400)
@@ -263,10 +310,10 @@ def main():
     import webbrowser
     import threading
 
-    url = "http://127.0.0.1:8765"
+    url = f"http://127.0.0.1:{PORT}"
     threading.Timer(1.2, lambda: webbrowser.open(url)).start()
     print(f"\nHero Studio running at {url}\n")
-    uvicorn.run(app, host="127.0.0.1", port=8765, log_level="warning")
+    uvicorn.run(app, host="127.0.0.1", port=PORT, log_level="warning")
 
 
 if __name__ == "__main__":

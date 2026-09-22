@@ -1,3 +1,9 @@
+function escapeHtml(str) {
+  return String(str ?? "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
+
 const state = {
   provider: "runway",
   sceneEngine: "local",
@@ -301,9 +307,9 @@ async function loadHistory() {
     const card = document.createElement("div");
     card.className = "history-card";
     if (job.video_url) {
-      card.innerHTML = `<video src="${job.video_url}" controls></video><div class="muted small">${job.status}</div>`;
+      card.innerHTML = `<video src="${encodeURI(job.video_url)}" controls></video><div class="muted small">${escapeHtml(job.status)}</div>`;
     } else {
-      card.innerHTML = `<div class="muted small">${job.id} — ${job.message || job.status}</div>`;
+      card.innerHTML = `<div class="muted small">${escapeHtml(job.id)} — ${escapeHtml(job.message || job.status)}</div>`;
     }
     grid.appendChild(card);
   }
@@ -438,7 +444,7 @@ async function loadAdmin() {
   const data = await resp.json();
   if (!resp.ok) {
     document.getElementById("admin-licenses-body").innerHTML =
-      `<tr><td colspan="4" class="muted small" style="color:var(--danger)">${data.error || "Couldn't load licenses."}</td></tr>`;
+      `<tr><td colspan="4" class="muted small" style="color:var(--danger)">${escapeHtml(data.error) || "Couldn't load licenses."}</td></tr>`;
     return;
   }
 
@@ -460,9 +466,9 @@ async function loadAdmin() {
     const lic = licenses[key];
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${lic.client || "—"}</td>
-      <td><code>${key}</code>${lic.machine_id ? `<br><span class="muted small">🔒 ${lic.machine_id}</span>` : '<br><span class="muted small">♾️ Any device</span>'}</td>
-      <td><span class="status-pill ${lic.status}">${lic.status}</span></td>
+      <td>${escapeHtml(lic.client) || "—"}</td>
+      <td><code>${escapeHtml(key)}</code>${lic.machine_id ? `<br><span class="muted small">🔒 ${escapeHtml(lic.machine_id)}</span>` : '<br><span class="muted small">♾️ Any device</span>'}</td>
+      <td><span class="status-pill ${escapeHtml(lic.status)}">${escapeHtml(lic.status)}</span></td>
       <td></td>
     `;
     const actionsCell = tr.querySelector("td:last-child");

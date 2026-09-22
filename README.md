@@ -20,10 +20,18 @@ plain-language questions, using GPT (needs an OpenAI key).
 
 ## Install
 
-**Mac** — download this repo (Code → Download ZIP, or `git clone` if you
-want update notifications later), unzip, double-click **`Launch Hero Studio.command`**.
+**One link, works for anyone, no GitHub account needed:**
+[github.com/Rishabhtruth2it/hero-studio/archive/refs/heads/main.zip](https://github.com/Rishabhtruth2it/hero-studio/archive/refs/heads/main.zip)
 
-**Windows** — same, but double-click **`Launch Hero Studio.bat`**.
+That link downloads the whole app as a ZIP immediately. Unzip it, then:
+
+**Mac** — double-click **`Launch Hero Studio.command`**.
+
+**Windows** — double-click **`Launch Hero Studio.bat`**.
+
+(If you'd rather clone with `git` so you get update notifications later,
+that also works — the repo is public: `git clone
+https://github.com/Rishabhtruth2it/hero-studio.git`.)
 
 Either way, first run installs everything automatically (a local Python
 3.11, a virtual environment, all dependencies) — no admin password needed.
@@ -115,6 +123,42 @@ from) — re-download the ZIP instead.
 To ship an update: commit and push to `main` as usual. Every git-cloned
 install picks it up automatically.
 
+## Security
+
+The server only binds to `127.0.0.1` (never reachable over the network),
+and a same-origin check rejects any cross-site request to every
+state-changing endpoint — confirmed by actually attacking a live instance
+during development, not just reasoned about: an early version let a plain
+cross-origin `<form>` POST silently trigger `/api/update/apply` (a real
+`git pull` + dependency reinstall) with zero friction from any website the
+admin happened to have open. Also in place: upload validation (image
+content-type + 25MB cap) on the photo-upload endpoint, output-escaping on
+every value rendered into the page (client names, keys, job messages) to
+close a stored-XSS path in the Admin table, `X-Frame-Options`/CSP headers
+against clickjacking, and `.env` staying at `600` permissions (owner-only)
+through every rewrite.
+
+What's *not* fixed, because it can't be from inside the app, and is worth
+knowing rather than assuming away:
+
+- **The license check is a deterrent, not DRM.** The app is fully readable
+  Python/JS; anyone willing to read `product_video/licensing.py` can delete
+  the call to `check_license()`. It stops casual non-payment, not a
+  determined developer.
+- **The license check fails open on a network error**, by design — an
+  unreachable Gist (GitHub outage, blocked DNS) lets the app keep running
+  on its last-cached result rather than bricking a legitimate user over a
+  transient blip. That also means someone could block the app's access to
+  `api.github.com`/`gist.githubusercontent.com` to force permanent
+  fail-open — a real bypass, and a deliberate tradeoff against the
+  alternative (annoying legitimate users far more often than it stops
+  anyone determined).
+- **The Machine ID isn't hardware-attested** — it's a random value written
+  to `.installation_id` on first run, not derived from real hardware (MAC-
+  address-based fingerprinting proved unreliable across environments during
+  testing — see the comment in `licensing.py`). Deleting that file and
+  relaunching gets a fresh ID.
+
 ## Command-line usage (advanced)
 
 The same pipeline is available as a CLI:
@@ -159,7 +203,9 @@ python -m product_video.stage4_assemble out.mp4 "Your caption here" final.mp4
 - **No automated defect/watermark cleanup.** That's inherently manual. Run
   `iopaint start --model=lama --device=cpu` separately (`pip install
   iopaint`) if you need it.
-- **This repo is private.** Each client needs to be added as a GitHub
-  collaborator (or given the license key + repo access some other way)
-  before they can clone or download it.
+- **This repo is public** so the install link works for anyone with no
+  GitHub account. That means the source (including how the license check
+  works) is publicly readable — nothing sensitive lives in it, though:
+  license keys, the admin token, and every user's API keys only ever exist
+  in local `.env` files, never in git.
 - **Licensing is a deterrent, not DRM** — see the Licensing section above.
