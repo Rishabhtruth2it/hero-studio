@@ -1,0 +1,22 @@
+# Stage 1 — local background removal / cleanup (free, no API key)
+rembg[cpu]==2.*
+Pillow>=10.0
+
+# Stage 2 — local scene compositing on Apple Silicon (free, no API key)
+# Installs mlx + downloads FLUX weights on first run (several GB).
+mflux>=0.20.0
+
+# Stage 3 — cinematic motion via your own API keys
+runwayml>=3.0.0      # official Runway Dev SDK
+requests>=2.31
+
+# Stage 4 — assembly (free, no API key)
+imageio-ffmpeg>=0.5   # ships a static ffmpeg binary, no Homebrew needed
+edge-tts>=6.1         # free local TTS for optional voiceover
+
+python-dotenv>=1.0
+
+# Web app (Hero Studio UI)
+fastapi>=0.115
+uvicorn>=0.32
+python-multipart>=0.0.9

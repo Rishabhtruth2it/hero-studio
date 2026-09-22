@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hero Studio</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">H</div>
+        <div class="brand-name">Hero Studio</div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-item active" data-view="create">
+          <svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/></svg>
+          Create
+        </button>
+        <button class="nav-item" data-view="history">
+          <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/></svg>
+          History
+        </button>
+        <button class="nav-item" data-view="settings">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.55V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 0 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z"/></svg>
+          Settings
+        </button>
+      </nav>
+
+      <div class="sidebar-foot">
+        <div id="key-status" class="key-status">
+          <span class="dot"></span>
+          <span id="key-status-text">No API key set</span>
+        </div>
+        <div class="byok-note">Your keys stay on this device only.</div>
+      </div>
+    </aside>
+
+    <main class="content">
+
+      <!-- CREATE VIEW -->
+      <section class="view active" id="view-create">
+        <header class="view-header">
+          <h1>Turn one photo into a cinematic product video</h1>
+          <p>Upload a product shot, describe the motion, generate with your own API key.</p>
+        </header>
+
+        <div class="create-grid">
+          <div class="panel">
+            <div class="panel-title">1 &nbsp;Product photo</div>
+            <div id="dropzone" class="dropzone">
+              <input type="file" id="file-input" accept="image/*" hidden />
+              <div id="dropzone-empty" class="dropzone-empty">
+                <svg viewBox="0 0 24 24" width="32" height="32"><path d="M12 16V4M12 4 7 9M12 4l5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+                <div><strong>Click to upload</strong> or drag a photo here</div>
+                <div class="muted">JPG, PNG, or WEBP</div>
+              </div>
+              <img id="preview-img" class="preview-img" hidden />
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-title">2 &nbsp;Motion</div>
+            <div class="chip-row" id="motion-presets">
+              <button class="chip" data-prompt="camera slowly pushes in, soft dust and light particles drift through warm rim light, subtle cinematic parallax">Slow push-in</button>
+              <button class="chip" data-prompt="the product rotates smoothly a full 360 degrees on a turntable, studio lighting glinting across the surface">360° turntable</button>
+              <button class="chip" data-prompt="a dramatic reveal as light sweeps across the label, the camera tilts up slowly, particles catch the light">Dramatic reveal</button>
+              <button class="chip" data-prompt="liquid splashes and swirls around the product in slow motion, droplets frozen mid-air, glossy highlights">Liquid splash</button>
+            </div>
+            <textarea id="motion-prompt" rows="3" placeholder="Describe how the scene should move..."></textarea>
+
+            <label class="field-label">Caption (optional, burned into the video)</label>
+            <input id="caption-input" type="text" placeholder="e.g. COCO. The one everyone asks about." />
+
+            <details class="advanced">
+              <summary>Advanced</summary>
+              <label class="switch-row">
+                <input type="checkbox" id="enhance-toggle" />
+                <span>Composite into a new scene first (local FLUX, Apple Silicon only, first run downloads ~12GB)</span>
+              </label>
+              <textarea id="scene-prompt" rows="2" placeholder="Scene instruction, e.g. 'on a marble pedestal under a glass dome, soft flowers, golden light'" disabled></textarea>
+            </details>
+          </div>
+
+          <div class="panel">
+            <div class="panel-title">3 &nbsp;Generate</div>
+            <label class="field-label">Provider</label>
+            <div class="provider-row">
+              <button class="provider-btn active" data-provider="runway">
+                <span class="provider-name">Runway Gen-4</span>
+                <span class="provider-sub">~$0.25 / 5s clip · fastest to iterate</span>
+              </button>
+              <button class="provider-btn" data-provider="kling">
+                <span class="provider-name">Kling 2.x</span>
+                <span class="provider-sub">~$0.50 / 5s clip · best liquid/glass motion</span>
+              </button>
+            </div>
+
+            <button id="generate-btn" class="primary-btn" disabled>Generate video</button>
+            <div id="generate-hint" class="muted small">Upload a photo and add a motion prompt to continue.</div>
+          </div>
+        </div>
+
+        <div id="result-panel" class="panel result-panel" hidden>
+          <div class="panel-title">Result</div>
+          <div id="progress-track" class="progress-track">
+            <div class="progress-step" data-step="removing_bg">Background</div>
+            <div class="progress-step" data-step="enhancing_scene">Scene</div>
+            <div class="progress-step" data-step="animating">Motion</div>
+            <div class="progress-step" data-step="captioning">Caption</div>
+          </div>
+          <div id="progress-message" class="muted"></div>
+          <video id="result-video" controls hidden></video>
+          <a id="download-link" class="secondary-btn" hidden download>Download video</a>
+        </div>
+      </section>
+
+      <!-- HISTORY VIEW -->
+      <section class="view" id="view-history">
+        <header class="view-header">
+          <h1>History</h1>
+          <p>Everything you've generated this session.</p>
+        </header>
+        <div id="history-grid" class="history-grid"></div>
+      </section>
+
+      <!-- SETTINGS VIEW -->
+      <section class="view" id="view-settings">
+        <header class="view-header">
+          <h1>Settings</h1>
+          <p>Bring your own API keys. They're written to a local <code>.env</code> file on this machine only — never uploaded, never shared with us.</p>
+        </header>
+
+        <div class="panel settings-panel">
+          <div class="panel-title">Runway Dev</div>
+          <p class="muted small">Get a key at <a href="https://dev.runwayml.com" target="_blank">dev.runwayml.com</a> → Organization → API Keys. Requires a small balance top-up (min $10) before generating.</p>
+          <div id="runway-current" class="current-key muted small"></div>
+          <input id="runway-key-input" type="password" placeholder="key_..." />
+          <button class="secondary-btn" id="save-runway">Save Runway key</button>
+        </div>
+
+        <div class="panel settings-panel">
+          <div class="panel-title">Kling AI</div>
+          <p class="muted small">Get a key at <a href="https://kling.ai/dev/api-key" target="_blank">kling.ai/dev/api-key</a>. Requires purchasing a resource package first.</p>
+          <div id="kling-current" class="current-key muted small"></div>
+          <input id="kling-key-input" type="password" placeholder="API key" />
+          <input id="kling-model-input" type="text" placeholder="kling-v2-5-turbo" />
+          <button class="secondary-btn" id="save-kling">Save Kling key</button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
