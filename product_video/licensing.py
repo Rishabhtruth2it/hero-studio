@@ -29,6 +29,7 @@ read stage-by-stage through licensing.py and delete the call to
 check_license(). Treat it as a deterrent and a usage signal, not unbreakable DRM.
 """
 import hashlib
+import json
 import time
 import uuid as uuidlib
 
@@ -70,6 +71,27 @@ def get_machine_id() -> str:
 
 
 def _fetch_remote() -> dict:
+    # Admin installs (which hold a write token) read through the authenticated
+    # GitHub API instead of the public raw-content URL. The raw URL is
+    # fronted by a CDN that can lag several minutes behind a write, which
+    # made just-added licenses briefly "disappear" from the Admin table -
+    # this path is always current. Client installs have no token and fall
+    # back to the raw URL; a few minutes of staleness there is invisible
+    # anyway given the 6h local cache in get_license_data().
+    if config.RAD_ADMIN_TOKEN:
+        gist_id = _gist_id_from_url(config.LICENSE_GIST_URL)
+        if gist_id:
+            resp = requests.get(
+                f"https://api.github.com/gists/{gist_id}",
+                headers={
+                    "Authorization": f"token {config.RAD_ADMIN_TOKEN}",
+                    "Accept": "application/vnd.github+json",
+                },
+                timeout=10,
+            )
+            resp.raise_for_status()
+            return json.loads(resp.json()["files"]["licenses.json"]["content"])
+
     resp = requests.get(config.LICENSE_GIST_URL, params={"_": int(time.time())}, timeout=10)
     resp.raise_for_status()
     return resp.json()
@@ -124,10 +146,19 @@ def _require_admin():
         raise PermissionError("RAD_ADMIN_TOKEN not set - this install has no admin rights.")
 
 
-def _write_remote(data: dict):
-    import json
+def _gist_id_from_url(url: str) -> str | None:
+    # Raw gist URLs look like:
+    #   https://gist.githubusercontent.com/<user>/<gist-id>/raw/licenses.json
+    #   https://gist.githubusercontent.com/<user>/<gist-id>/raw/<revision-sha>/licenses.json
+    # The gist id is always the path segment immediately before "raw".
+    parts = url.rstrip("/").split("/")
+    if "raw" not in parts:
+        return None
+    return parts[parts.index("raw") - 1]
 
-    gist_id = config.LICENSE_GIST_URL.rstrip("/").split("/")[-2] if "gist.githubusercontent.com" in config.LICENSE_GIST_URL else None
+
+def _write_remote(data: dict):
+    gist_id = _gist_id_from_url(config.LICENSE_GIST_URL)
     if not gist_id:
         raise RuntimeError("Could not determine gist id from LICENSE_GIST_URL")
 
