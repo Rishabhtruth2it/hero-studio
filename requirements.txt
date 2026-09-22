@@ -2,9 +2,15 @@
 rembg[cpu]==2.*
 Pillow>=10.0
 
-# Stage 2 — local scene compositing on Apple Silicon (free, no API key)
+# Stage 2 — local scene compositing (free, no API key)
+# mlx is Apple-Silicon-only (no Windows/Linux wheels), so this is skipped
+# entirely outside macOS — the "enhance scene" option just won't appear.
 # Installs mlx + downloads FLUX weights on first run (several GB).
-mflux>=0.20.0
+mflux>=0.20.0; sys_platform == "darwin" and platform_machine == "arm64"
+
+# Stage 2 alternative — scene compositing via gpt-image-1-mini, your own
+# OpenAI key. Works on any platform (this is what Windows/Linux use).
+openai>=1.50
 
 # Stage 3 — cinematic motion via your own API keys
 runwayml>=3.0.0      # official Runway Dev SDK

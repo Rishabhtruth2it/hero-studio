@@ -4,6 +4,7 @@ Runs entirely on the user's machine. API keys are written to a local .env
 file next to this project and never sent anywhere except the official
 provider (Runway / Kling) they belong to.
 """
+import platform
 import shutil
 import uuid
 from pathlib import Path
@@ -13,7 +14,9 @@ from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from product_video import config
+from product_video import config, licensing, updater
+from product_video.stage2_scene import local_engine_available
+from product_video.prompt_helper import generate_prompts
 from . import pipeline_runner as pr
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -29,6 +32,73 @@ def _mask(value: str | None) -> str | None:
     return f"•••• {value[-4:]}" if value else None
 
 
+@app.get("/api/platform")
+def get_platform():
+    return {
+        "os": platform.system(),
+        "local_scene_engine_available": local_engine_available(),
+    }
+
+
+@app.get("/api/license/status")
+def license_status():
+    result = licensing.check_license()
+    result["is_admin"] = licensing.is_admin()
+    result["machine_id"] = licensing.get_machine_id()
+    return result
+
+
+@app.get("/api/update/check")
+def update_check():
+    return updater.check_for_update()
+
+
+@app.post("/api/update/apply")
+def update_apply():
+    return updater.apply_update()
+
+
+def _require_admin():
+    if not licensing.is_admin():
+        return JSONResponse({"error": "Admin access required."}, status_code=403)
+    return None
+
+
+@app.get("/api/admin/licenses")
+def admin_list_licenses():
+    denied = _require_admin()
+    if denied:
+        return denied
+    try:
+        return licensing.get_license_data(force_refresh=True)
+    except Exception as e:  # noqa: BLE001
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/admin/licenses")
+async def admin_mutate_license(payload: dict):
+    denied = _require_admin()
+    if denied:
+        return denied
+    action = payload.get("action")
+    try:
+        if action == "add":
+            data = licensing.add_license(payload["key"], payload.get("client", ""), payload.get("machine_id", ""))
+        elif action == "revoke":
+            data = licensing.set_license_status(payload["key"], "revoked")
+        elif action == "activate":
+            data = licensing.set_license_status(payload["key"], "active")
+        elif action == "bind_machine":
+            data = licensing.set_license_machine(payload["key"], payload.get("machine_id", ""))
+        elif action == "global_kill":
+            data = licensing.set_global_kill(bool(payload.get("enabled")))
+        else:
+            return JSONResponse({"error": f"Unknown action '{action}'"}, status_code=400)
+    except Exception as e:  # noqa: BLE001
+        return JSONResponse({"error": str(e)}, status_code=500)
+    return data
+
+
 @app.get("/api/settings")
 def get_settings():
     vals = dotenv_values(ENV_PATH) if ENV_PATH.exists() else {}
@@ -41,6 +111,15 @@ def get_settings():
             "configured": bool(vals.get("KLING_API_KEY")),
             "masked": _mask(vals.get("KLING_API_KEY")),
             "model": vals.get("KLING_MODEL", "kling-v2-5-turbo"),
+        },
+        "openai": {
+            "configured": bool(vals.get("OPENAI_API_KEY")),
+            "masked": _mask(vals.get("OPENAI_API_KEY")),
+            "model": vals.get("OPENAI_IMAGE_MODEL", "gpt-image-1-mini"),
+        },
+        "license": {
+            "configured": bool(vals.get("HERO_STUDIO_LICENSE_KEY")),
+            "masked": _mask(vals.get("HERO_STUDIO_LICENSE_KEY")),
         },
     }
 
@@ -62,7 +141,36 @@ async def save_settings(payload: dict):
         set_key(str(ENV_PATH), "KLING_MODEL", payload["kling_model"])
         config.KLING_MODEL = payload["kling_model"]
 
+    if payload.get("openai_key"):
+        set_key(str(ENV_PATH), "OPENAI_API_KEY", payload["openai_key"])
+        config.OPENAI_API_KEY = payload["openai_key"]
+
+    if payload.get("openai_model"):
+        set_key(str(ENV_PATH), "OPENAI_IMAGE_MODEL", payload["openai_model"])
+        config.OPENAI_IMAGE_MODEL = payload["openai_model"]
+
+    if payload.get("license_key"):
+        set_key(str(ENV_PATH), "HERO_STUDIO_LICENSE_KEY", payload["license_key"])
+        config.LICENSE_KEY = payload["license_key"]
+
     return {"ok": True}
+
+
+@app.post("/api/prompt-helper")
+async def prompt_helper(payload: dict):
+    if not config.OPENAI_API_KEY:
+        return JSONResponse({"error": "No OpenAI API key configured. Add one in Settings first."}, status_code=400)
+    try:
+        result = generate_prompts(
+            product=payload.get("product", ""),
+            vibe=payload.get("vibe", ""),
+            setting=payload.get("setting", ""),
+            action=payload.get("action", ""),
+            notes=payload.get("notes", ""),
+        )
+    except Exception as e:  # noqa: BLE001
+        return JSONResponse({"error": str(e)}, status_code=500)
+    return result
 
 
 @app.post("/api/jobs")
@@ -73,8 +181,13 @@ async def create_job(
     caption: str = Form(""),
     enhance_scene: bool = Form(False),
     scene_prompt: str = Form(""),
+    scene_engine: str = Form("local"),
     quantize: int = Form(4),
 ):
+    lic = licensing.check_license()
+    if not lic["ok"]:
+        return JSONResponse({"error": lic["reason"]}, status_code=403)
+
     job_id = pr.new_job_id()
     suffix = Path(file.filename or "upload.jpg").suffix or ".jpg"
     dest = UPLOAD_DIR / f"{job_id}{suffix}"
@@ -85,6 +198,10 @@ async def create_job(
         return JSONResponse({"error": "No Runway API key configured. Add one in Settings first."}, status_code=400)
     if provider == "kling" and not config.KLING_API_KEY:
         return JSONResponse({"error": "No Kling API key configured. Add one in Settings first."}, status_code=400)
+    if enhance_scene and scene_engine == "openai" and not config.OPENAI_API_KEY:
+        return JSONResponse({"error": "No OpenAI API key configured. Add one in Settings first."}, status_code=400)
+    if enhance_scene and scene_engine == "local" and not local_engine_available():
+        return JSONResponse({"error": "Local scene compositing needs Apple Silicon. Pick the OpenAI engine instead."}, status_code=400)
 
     pr.create_job(
         job_id,
@@ -94,6 +211,7 @@ async def create_job(
         caption or None,
         enhance_scene,
         scene_prompt or None,
+        scene_engine,
         quantize,
     )
     return {"job_id": job_id}

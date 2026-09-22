@@ -3,15 +3,18 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Hero Studio</title>
+  <title>Hero Studio | RAD Media Solutions</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
   <div class="shell">
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-mark">H</div>
-        <div class="brand-name">Hero Studio</div>
+        <div class="brand-mark">R</div>
+        <div class="brand-text">
+          <div class="brand-name">Hero Studio</div>
+          <div class="brand-sub">by RAD Media Solutions</div>
+        </div>
       </div>
 
       <nav class="nav">
@@ -27,6 +30,10 @@
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.55V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 0 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z"/></svg>
           Settings
         </button>
+        <button class="nav-item" data-view="admin" id="nav-admin" hidden>
+          <svg viewBox="0 0 24 24"><path d="M12 2 3 6v6c0 5 3.8 8.7 9 10 5.2-1.3 9-5 9-10V6z"/></svg>
+          Admin
+        </button>
       </nav>
 
       <div class="sidebar-foot">
@@ -35,10 +42,16 @@
           <span id="key-status-text">No API key set</span>
         </div>
         <div class="byok-note">Your keys stay on this device only.</div>
+        <div class="rad-footer">© RAD Media Solutions</div>
       </div>
     </aside>
 
     <main class="content">
+
+      <div id="update-banner" class="update-banner" hidden>
+        <span id="update-banner-text"></span>
+        <button id="update-banner-btn">Update now</button>
+      </div>
 
       <!-- CREATE VIEW -->
       <section class="view active" id="view-create">
@@ -46,6 +59,42 @@
           <h1>Turn one photo into a cinematic product video</h1>
           <p>Upload a product shot, describe the motion, generate with your own API key.</p>
         </header>
+
+        <div class="panel wizard-panel">
+          <button class="wizard-toggle" id="wizard-toggle">
+            <span>✨ Not sure what to write? Answer 4 quick questions and let AI write the prompts</span>
+            <span class="wizard-chevron">▾</span>
+          </button>
+          <div class="wizard-body" id="wizard-body" hidden>
+            <div class="wizard-grid">
+              <div>
+                <label class="field-label">What's the product?</label>
+                <input id="wiz-product" type="text" placeholder="e.g. vanilla protein powder tub" />
+              </div>
+              <div>
+                <label class="field-label">Setting / location</label>
+                <input id="wiz-setting" type="text" placeholder="e.g. gym, marble kitchen counter, nature" />
+              </div>
+            </div>
+            <label class="field-label">Vibe</label>
+            <div class="chip-row" id="wiz-vibe-chips">
+              <button class="chip" data-value="luxury">Luxury</button>
+              <button class="chip" data-value="energetic">Energetic</button>
+              <button class="chip" data-value="minimal">Minimal</button>
+              <button class="chip" data-value="playful">Playful</button>
+              <button class="chip" data-value="natural">Natural</button>
+            </div>
+            <label class="field-label">Key action</label>
+            <div class="chip-row" id="wiz-action-chips">
+              <button class="chip" data-value="slow reveal">Slow reveal</button>
+              <button class="chip" data-value="rotate">Rotate</button>
+              <button class="chip" data-value="splash">Splash</button>
+              <button class="chip" data-value="push-in">Push-in</button>
+            </div>
+            <button class="primary-btn" id="wizard-generate">Write my prompts</button>
+            <div id="wizard-status" class="muted small"></div>
+          </div>
+        </div>
 
         <div class="create-grid">
           <div class="panel">
@@ -78,8 +127,20 @@
               <summary>Advanced</summary>
               <label class="switch-row">
                 <input type="checkbox" id="enhance-toggle" />
-                <span>Composite into a new scene first (local FLUX, Apple Silicon only, first run downloads ~12GB)</span>
+                <span>Composite into a new scene first</span>
               </label>
+
+              <div id="scene-engine-row" class="engine-row" hidden>
+                <button class="engine-btn active" data-engine="local">
+                  <span class="provider-name">Local FLUX</span>
+                  <span class="provider-sub">Free · Apple Silicon only · first run downloads ~12GB</span>
+                </button>
+                <button class="engine-btn" data-engine="openai">
+                  <span class="provider-name">OpenAI gpt-image-1-mini</span>
+                  <span class="provider-sub">~$0.01/image · any platform · your own key</span>
+                </button>
+              </div>
+
               <textarea id="scene-prompt" rows="2" placeholder="Scene instruction, e.g. 'on a marble pedestal under a glass dome, soft flowers, golden light'" disabled></textarea>
             </details>
           </div>
@@ -149,9 +210,70 @@
           <input id="kling-model-input" type="text" placeholder="kling-v2-5-turbo" />
           <button class="secondary-btn" id="save-kling">Save Kling key</button>
         </div>
+
+        <div class="panel settings-panel">
+          <div class="panel-title">OpenAI (scene compositing)</div>
+          <p class="muted small">Get a key at <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com/api-keys</a>. Used only for the optional "composite into a new scene" step — cheapest option, works on Windows/Mac/Linux. Not needed if you're on Apple Silicon and using the free local engine instead.</p>
+          <div id="openai-current" class="current-key muted small"></div>
+          <input id="openai-key-input" type="password" placeholder="sk-..." />
+          <input id="openai-model-input" type="text" placeholder="gpt-image-1-mini" />
+          <button class="secondary-btn" id="save-openai">Save OpenAI key</button>
+        </div>
+
+        <div class="panel settings-panel" id="license-settings-panel">
+          <div class="panel-title">License</div>
+          <p class="muted small">The key RAD Media Solutions gave you when you signed up.</p>
+          <div id="license-current" class="current-key muted small"></div>
+          <input id="license-key-input" type="text" placeholder="license key" />
+          <button class="secondary-btn" id="save-license">Save license key</button>
+
+          <p class="muted small" style="margin-top:16px;">Your Machine ID (send this to RAD Media Solutions once, so they can activate your license on this device):</p>
+          <div id="machine-id-box" class="machine-id-box">…</div>
+        </div>
+      </section>
+
+      <!-- ADMIN VIEW (RAD Media Solutions only) -->
+      <section class="view" id="view-admin">
+        <header class="view-header">
+          <h1>Admin</h1>
+          <p>Visible only on this install. Changes take effect for every installed copy within a few hours (or immediately once they restart the app).</p>
+        </header>
+
+        <div class="panel danger-panel">
+          <div class="panel-title">Kill switch</div>
+          <p class="muted small">Immediately blocks every non-admin install, regardless of individual license status. Use for "pull the app entirely," not for a single client.</p>
+          <button class="danger-btn" id="kill-switch-btn">Enable global kill switch</button>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">Add a license</div>
+          <div class="wizard-grid">
+            <input id="admin-new-client" type="text" placeholder="Client name" />
+            <input id="admin-new-key" type="text" placeholder="License key (leave blank to auto-generate)" />
+          </div>
+          <input id="admin-new-machine" type="text" placeholder="Machine ID (paste what the client sent you, or leave blank for unlocked/trial)" />
+          <button class="secondary-btn" id="admin-add-license">Add license</button>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">Licensed clients</div>
+          <table class="admin-table" id="admin-licenses-table">
+            <thead><tr><th>Client</th><th>Key</th><th>Status</th><th></th></tr></thead>
+            <tbody id="admin-licenses-body"></tbody>
+          </table>
+        </div>
       </section>
 
     </main>
+  </div>
+
+  <div id="license-block" class="license-block" hidden>
+    <div class="license-block-card">
+      <div class="brand-mark" style="margin: 0 auto 14px;">R</div>
+      <h2>This copy of Hero Studio is inactive</h2>
+      <p id="license-block-reason" class="muted"></p>
+      <button class="primary-btn" id="license-block-settings-btn">Enter a license key</button>
+    </div>
   </div>
 
   <script src="/app.js"></script>

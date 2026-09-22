@@ -50,6 +50,7 @@ def create_job(
     caption: Optional[str] = None,
     enhance_scene: bool = False,
     scene_prompt: Optional[str] = None,
+    scene_engine: str = "local",
     quantize: int = 4,
 ) -> Job:
     job = Job(id=job_id, thumb_path=input_path)
@@ -58,7 +59,7 @@ def create_job(
 
     thread = threading.Thread(
         target=_run_job,
-        args=(job, input_path, motion_prompt, provider, caption, enhance_scene, scene_prompt, quantize),
+        args=(job, input_path, motion_prompt, provider, caption, enhance_scene, scene_prompt, scene_engine, quantize),
         daemon=True,
     )
     thread.start()
@@ -78,6 +79,7 @@ def _run_job(
     caption: Optional[str],
     enhance_scene: bool,
     scene_prompt: Optional[str],
+    scene_engine: str,
     quantize: int,
 ):
     work = config.OUTPUT_DIR / job.id
@@ -91,9 +93,10 @@ def _run_job(
             cutout_path = work / "1_cutout.png"
             remove_background(input_path, str(cutout_path))
 
-            _set(job, "enhancing_scene")
+            _set(job, "enhancing_scene", f"Compositing scene via {scene_engine}...")
             scene_out = work / "2_hero.png"
-            compose_scene(str(cutout_path), scene_prompt or motion_prompt, str(scene_out), quantize=quantize)
+            scene_kwargs = {"quantize": quantize} if scene_engine == "local" else {}
+            compose_scene(scene_engine, str(cutout_path), scene_prompt or motion_prompt, str(scene_out), **scene_kwargs)
             hero_path = str(scene_out)
 
         _set(job, "animating", f"Generating motion via {provider}...")

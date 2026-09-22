@@ -4,13 +4,37 @@ Uses the static ffmpeg binary bundled by imageio-ffmpeg (no Homebrew needed)
 and edge-tts (free, no key) for voiceover.
 """
 import asyncio
+import platform
 import subprocess
 from pathlib import Path
 
 import imageio_ffmpeg
 
 FFMPEG = imageio_ffmpeg.get_ffmpeg_exe()
-DEFAULT_FONT = "/System/Library/Fonts/Helvetica.ttc"
+
+
+def _default_font() -> str:
+    system = platform.system()
+    if system == "Darwin":
+        return "/System/Library/Fonts/Helvetica.ttc"
+    if system == "Windows":
+        return "C:/Windows/Fonts/arial.ttf"
+    for candidate in (
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+    ):
+        if Path(candidate).exists():
+            return candidate
+    return "Arial"  # let fontconfig resolve by name as a last resort
+
+
+DEFAULT_FONT = _default_font()
+
+
+def _escape_ffmpeg(value: str) -> str:
+    # ffmpeg's filtergraph syntax treats ':' and "'" as special, and a
+    # Windows path (C:/...) needs its drive-letter colon escaped too.
+    return value.replace("\\", "\\\\").replace(":", r"\:").replace("'", r"\'")
 
 
 def add_caption(
@@ -22,9 +46,8 @@ def add_caption(
     position: str = "bottom",
 ) -> str:
     y = "h-th-80" if position == "bottom" else "80"
-    escaped = text.replace(":", r"\:").replace("'", r"\'")
     drawtext = (
-        f"drawtext=fontfile={font_path}:text='{escaped}':fontcolor=white:"
+        f"drawtext=fontfile={_escape_ffmpeg(font_path)}:text='{_escape_ffmpeg(text)}':fontcolor=white:"
         f"fontsize={font_size}:borderw=3:bordercolor=black:x=(w-tw)/2:y={y}"
     )
     subprocess.run(

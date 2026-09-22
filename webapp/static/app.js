@@ -1,7 +1,11 @@
 const state = {
   provider: "runway",
+  sceneEngine: "local",
+  localSceneAvailable: true,
   file: null,
   polling: null,
+  wizVibe: null,
+  wizAction: null,
 };
 
 // ---------- Nav ----------
@@ -14,6 +18,7 @@ document.querySelectorAll(".nav-item").forEach((btn) => {
     document.getElementById(`view-${btn.dataset.view}`).classList.add("active");
     if (btn.dataset.view === "history") loadHistory();
     if (btn.dataset.view === "settings") loadSettings();
+    if (btn.dataset.view === "admin") loadAdmin();
   });
 });
 
@@ -60,9 +65,38 @@ document.getElementById("motion-prompt").addEventListener("input", updateGenerat
 
 const enhanceToggle = document.getElementById("enhance-toggle");
 const scenePromptEl = document.getElementById("scene-prompt");
+const sceneEngineRow = document.getElementById("scene-engine-row");
 enhanceToggle.addEventListener("change", () => {
   scenePromptEl.disabled = !enhanceToggle.checked;
+  sceneEngineRow.hidden = !enhanceToggle.checked;
 });
+
+document.querySelectorAll(".engine-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    if (btn.disabled) return;
+    document.querySelectorAll(".engine-btn").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    state.sceneEngine = btn.dataset.engine;
+  });
+});
+
+async function loadPlatform() {
+  try {
+    const resp = await fetch("/api/platform");
+    const data = await resp.json();
+    state.localSceneAvailable = data.local_scene_engine_available;
+    const localBtn = document.querySelector('.engine-btn[data-engine="local"]');
+    const openaiBtn = document.querySelector('.engine-btn[data-engine="openai"]');
+    if (!data.local_scene_engine_available) {
+      localBtn.disabled = true;
+      localBtn.style.opacity = 0.4;
+      localBtn.querySelector(".provider-sub").textContent = `Not available on ${data.os} — needs Apple Silicon`;
+      document.querySelectorAll(".engine-btn").forEach((b) => b.classList.remove("active"));
+      openaiBtn.classList.add("active");
+      state.sceneEngine = "openai";
+    }
+  } catch (e) { /* platform check is best-effort */ }
+}
 
 // ---------- Provider ----------
 
@@ -72,6 +106,79 @@ document.querySelectorAll(".provider-btn").forEach((btn) => {
     btn.classList.add("active");
     state.provider = btn.dataset.provider;
   });
+});
+
+// ---------- Wizard ----------
+
+const wizardToggle = document.getElementById("wizard-toggle");
+const wizardBody = document.getElementById("wizard-body");
+wizardToggle.addEventListener("click", () => {
+  const isOpen = !wizardBody.hidden;
+  wizardBody.hidden = isOpen;
+  wizardToggle.classList.toggle("open", !isOpen);
+});
+
+document.querySelectorAll("#wiz-vibe-chips .chip").forEach((chip) => {
+  chip.addEventListener("click", () => {
+    document.querySelectorAll("#wiz-vibe-chips .chip").forEach((c) => c.classList.remove("selected"));
+    chip.classList.add("selected");
+    state.wizVibe = chip.dataset.value;
+  });
+});
+
+document.querySelectorAll("#wiz-action-chips .chip").forEach((chip) => {
+  chip.addEventListener("click", () => {
+    document.querySelectorAll("#wiz-action-chips .chip").forEach((c) => c.classList.remove("selected"));
+    chip.classList.add("selected");
+    state.wizAction = chip.dataset.value;
+  });
+});
+
+document.getElementById("wizard-generate").addEventListener("click", async () => {
+  const statusEl = document.getElementById("wizard-status");
+  const product = document.getElementById("wiz-product").value.trim();
+  const setting = document.getElementById("wiz-setting").value.trim();
+
+  if (!product) {
+    statusEl.textContent = "Tell us what the product is, at least.";
+    statusEl.style.color = "var(--danger)";
+    return;
+  }
+
+  statusEl.style.color = "";
+  statusEl.textContent = "Writing your prompts...";
+
+  const resp = await fetch("/api/prompt-helper", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      product,
+      setting,
+      vibe: state.wizVibe || "",
+      action: state.wizAction || "",
+    }),
+  });
+  const data = await resp.json();
+
+  if (!resp.ok) {
+    statusEl.textContent = data.error || "Couldn't generate prompts.";
+    statusEl.style.color = "var(--danger)";
+    return;
+  }
+
+  document.getElementById("motion-prompt").value = data.motion_prompt || "";
+  if (data.caption) document.getElementById("caption-input").value = data.caption;
+
+  if (data.scene_prompt && setting) {
+    scenePromptEl.value = data.scene_prompt;
+    enhanceToggle.checked = true;
+    scenePromptEl.disabled = false;
+    sceneEngineRow.hidden = false;
+  }
+
+  statusEl.style.color = "var(--success)";
+  statusEl.textContent = "Done — prompts filled in below. Feel free to tweak them.";
+  updateGenerateState();
 });
 
 // ---------- Generate button state ----------
@@ -97,6 +204,7 @@ document.getElementById("generate-btn").addEventListener("click", async () => {
   form.append("provider", state.provider);
   form.append("enhance_scene", enhanceToggle.checked);
   form.append("scene_prompt", scenePromptEl.value.trim());
+  form.append("scene_engine", state.sceneEngine);
 
   const resultPanel = document.getElementById("result-panel");
   resultPanel.hidden = false;
@@ -218,18 +326,30 @@ async function loadSettings() {
     : "No key set yet.";
   document.getElementById("kling-model-input").value = data.kling.model || "kling-v2-5-turbo";
 
+  const openaiEl = document.getElementById("openai-current");
+  openaiEl.textContent = data.openai.configured
+    ? `Current key: ${data.openai.masked} (model: ${data.openai.model})`
+    : "No key set yet.";
+  document.getElementById("openai-model-input").value = data.openai.model || "gpt-image-1-mini";
+
+  const licenseEl = document.getElementById("license-current");
+  licenseEl.textContent = data.license.configured
+    ? `Current key: ${data.license.masked}`
+    : "No license key set yet.";
+
   updateSidebarKeyStatus(data);
 }
 
 function updateSidebarKeyStatus(data) {
   const dotWrap = document.getElementById("key-status");
   const text = document.getElementById("key-status-text");
-  const hasAny = data.runway.configured || data.kling.configured;
+  const hasAny = data.runway.configured || data.kling.configured || data.openai.configured;
   dotWrap.classList.toggle("ok", hasAny);
   if (hasAny) {
     const parts = [];
     if (data.runway.configured) parts.push("Runway");
     if (data.kling.configured) parts.push("Kling");
+    if (data.openai.configured) parts.push("OpenAI");
     text.textContent = parts.join(" + ") + " connected";
   } else {
     text.textContent = "No API key set";
@@ -261,6 +381,202 @@ document.getElementById("save-kling").addEventListener("click", async () => {
   loadSettings();
 });
 
+document.getElementById("save-openai").addEventListener("click", async () => {
+  const key = document.getElementById("openai-key-input").value.trim();
+  const model = document.getElementById("openai-model-input").value.trim();
+  if (!key && !model) return;
+  await fetch("/api/settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ openai_key: key || undefined, openai_model: model || undefined }),
+  });
+  document.getElementById("openai-key-input").value = "";
+  loadSettings();
+});
+
+document.getElementById("save-license").addEventListener("click", async () => {
+  const key = document.getElementById("license-key-input").value.trim();
+  if (!key) return;
+  await fetch("/api/settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ license_key: key }),
+  });
+  document.getElementById("license-key-input").value = "";
+  loadSettings();
+  checkLicense();
+});
+
+// ---------- License gate ----------
+
+async function checkLicense() {
+  const resp = await fetch("/api/license/status");
+  const data = await resp.json();
+
+  document.getElementById("machine-id-box").textContent = data.machine_id || "unavailable";
+  document.getElementById("nav-admin").hidden = !data.is_admin;
+
+  const overlay = document.getElementById("license-block");
+  if (data.ok) {
+    overlay.hidden = true;
+  } else {
+    overlay.hidden = false;
+    document.getElementById("license-block-reason").textContent = data.reason;
+  }
+  return data;
+}
+
+document.getElementById("license-block-settings-btn").addEventListener("click", () => {
+  document.getElementById("license-block").hidden = true;
+  document.querySelector('.nav-item[data-view="settings"]').click();
+});
+
+// ---------- Admin ----------
+
+async function loadAdmin() {
+  const resp = await fetch("/api/admin/licenses");
+  const data = await resp.json();
+  if (!resp.ok) {
+    document.getElementById("admin-licenses-body").innerHTML =
+      `<tr><td colspan="4" class="muted small" style="color:var(--danger)">${data.error || "Couldn't load licenses."}</td></tr>`;
+    return;
+  }
+
+  const killBtn = document.getElementById("kill-switch-btn");
+  killBtn.classList.toggle("active", !!data.global_kill);
+  killBtn.textContent = data.global_kill ? "Disable global kill switch" : "Enable global kill switch";
+
+  const body = document.getElementById("admin-licenses-body");
+  body.innerHTML = "";
+  const licenses = data.licenses || {};
+  const keys = Object.keys(licenses);
+
+  if (!keys.length) {
+    body.innerHTML = '<tr><td colspan="4" class="muted small">No licenses yet.</td></tr>';
+    return;
+  }
+
+  for (const key of keys) {
+    const lic = licenses[key];
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${lic.client || "—"}</td>
+      <td><code>${key}</code>${lic.machine_id ? `<br><span class="muted small">🔒 ${lic.machine_id}</span>` : '<br><span class="muted small">unlocked</span>'}</td>
+      <td><span class="status-pill ${lic.status}">${lic.status}</span></td>
+      <td></td>
+    `;
+    const actionsCell = tr.querySelector("td:last-child");
+
+    const toggleBtn = document.createElement("button");
+    toggleBtn.textContent = lic.status === "active" ? "Revoke" : "Activate";
+    toggleBtn.addEventListener("click", async () => {
+      await fetch("/api/admin/licenses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: lic.status === "active" ? "revoke" : "activate", key }),
+      });
+      loadAdmin();
+    });
+    actionsCell.appendChild(toggleBtn);
+
+    if (!lic.machine_id) {
+      const lockBtn = document.createElement("button");
+      lockBtn.textContent = "Lock to a device";
+      lockBtn.addEventListener("click", async () => {
+        const machineId = prompt("Paste the Machine ID the client sent you:");
+        if (!machineId) return;
+        await fetch("/api/admin/licenses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "bind_machine", key, machine_id: machineId.trim() }),
+        });
+        loadAdmin();
+      });
+      actionsCell.appendChild(lockBtn);
+    } else {
+      const unlockBtn = document.createElement("button");
+      unlockBtn.textContent = "Unlock";
+      unlockBtn.addEventListener("click", async () => {
+        await fetch("/api/admin/licenses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "bind_machine", key, machine_id: "" }),
+        });
+        loadAdmin();
+      });
+      actionsCell.appendChild(unlockBtn);
+    }
+
+    body.appendChild(tr);
+  }
+}
+
+document.getElementById("admin-add-license").addEventListener("click", async () => {
+  const client = document.getElementById("admin-new-client").value.trim();
+  let key = document.getElementById("admin-new-key").value.trim();
+  const machineId = document.getElementById("admin-new-machine").value.trim();
+  if (!client) { alert("Client name is required."); return; }
+  if (!key) key = crypto.randomUUID().replace(/-/g, "").slice(0, 20).toUpperCase();
+
+  await fetch("/api/admin/licenses", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "add", key, client, machine_id: machineId }),
+  });
+  document.getElementById("admin-new-client").value = "";
+  document.getElementById("admin-new-key").value = "";
+  document.getElementById("admin-new-machine").value = "";
+  loadAdmin();
+});
+
+document.getElementById("kill-switch-btn").addEventListener("click", async () => {
+  const enabling = !document.getElementById("kill-switch-btn").classList.contains("active");
+  if (enabling && !confirm("This blocks EVERY non-admin install immediately. Continue?")) return;
+  await fetch("/api/admin/licenses", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "global_kill", enabled: enabling }),
+  });
+  loadAdmin();
+});
+
+// ---------- Updates ----------
+
+async function checkForUpdate() {
+  try {
+    const resp = await fetch("/api/update/check");
+    const data = await resp.json();
+    const banner = document.getElementById("update-banner");
+    if (data.update_available) {
+      document.getElementById("update-banner-text").textContent =
+        `A new version of Hero Studio is available (${data.commits_behind} update${data.commits_behind === 1 ? "" : "s"} behind).`;
+      banner.hidden = false;
+    } else {
+      banner.hidden = true;
+    }
+  } catch (e) { /* best-effort */ }
+}
+
+document.getElementById("update-banner-btn").addEventListener("click", async () => {
+  const btn = document.getElementById("update-banner-btn");
+  btn.disabled = true;
+  btn.textContent = "Updating...";
+  const resp = await fetch("/api/update/apply", { method: "POST" });
+  const data = await resp.json();
+  if (data.ok) {
+    document.getElementById("update-banner-text").textContent =
+      "Updated! Quit and reopen Hero Studio (re-run the launcher) to finish.";
+    btn.hidden = true;
+  } else {
+    document.getElementById("update-banner-text").textContent = "Update failed: " + (data.error || "unknown error");
+    btn.disabled = false;
+    btn.textContent = "Retry";
+  }
+});
+
 // ---------- Init ----------
 
 loadSettings();
+loadPlatform();
+checkLicense();
+checkForUpdate();
