@@ -4,6 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Hero Studio | RAD Media Solutions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400..700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
@@ -56,7 +59,8 @@
       <!-- CREATE VIEW -->
       <section class="view active" id="view-create">
         <header class="view-header">
-          <h1>Turn one photo into a cinematic product video</h1>
+          <div class="eyebrow">YOUR KEYS · YOUR MODELS · YOUR VIDEO</div>
+          <h1>Turn one photo into a <em>cinematic</em> product video</h1>
           <p>Upload a product shot, describe the motion, generate with your own API key.</p>
         </header>
 
@@ -181,6 +185,7 @@
       <!-- HISTORY VIEW -->
       <section class="view" id="view-history">
         <header class="view-header">
+          <div class="eyebrow">YOUR LIBRARY</div>
           <h1>History</h1>
           <p>Everything you've generated this session.</p>
         </header>
@@ -190,8 +195,9 @@
       <!-- SETTINGS VIEW -->
       <section class="view" id="view-settings">
         <header class="view-header">
+          <div class="eyebrow">BRING YOUR OWN KEYS</div>
           <h1>Settings</h1>
-          <p>Bring your own API keys. They're written to a local <code>.env</code> file on this machine only — never uploaded, never shared with us.</p>
+          <p>They're written to a local <code>.env</code> file on this machine only — never uploaded, never shared with us.</p>
         </header>
 
         <div class="panel settings-panel">
@@ -235,6 +241,7 @@
       <!-- ADMIN VIEW (RAD Media Solutions only) -->
       <section class="view" id="view-admin">
         <header class="view-header">
+          <div class="eyebrow">RAD MEDIA SOLUTIONS ONLY</div>
           <h1>Admin</h1>
           <p>Visible only on this install. Changes take effect for every installed copy within a few hours (or immediately once they restart the app).</p>
         </header>
