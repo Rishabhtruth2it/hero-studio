@@ -3,17 +3,22 @@
   --panel: #1a1a1a;
   --panel-2: #212121;
   --border: rgba(255, 255, 255, 0.09);
-  --border-gold: rgba(217, 182, 101, 0.35);
-  --text: #f2efe8;
-  --muted: #9a958a;
-  --gold-hi: #f1d68f;
-  --gold-mid: #d9b665;
-  --gold-lo: #b8923f;
-  --accent: #d9b665;
-  --accent-2: #f1d68f;
-  --accent-ink: #1a1200;
-  --danger: #e25c5c;
+  --border-accent: rgba(202, 58, 48, 0.4);
+  --text: #f4f0ee;
+  --muted: #9a9490;
+
+  /* RAD Media Solutions red, sampled from the logo (#ca3a30) */
+  --red-hi: #d6655e;
+  --red-mid: #ca3a30;
+  --red-lo: #892721;
+  --accent: #ca3a30;
+  --accent-2: #d6655e;
+  --accent-ink: #fff6f4;
+
+  /* Distinct from brand red so the kill-switch/error states stay legible */
+  --danger: #ff5470;
   --success: #5ec98d;
+
   --radius: 14px;
   --radius-sm: 9px;
   --serif: "Instrument Serif", Georgia, serif;
@@ -34,7 +39,21 @@ html, body {
   overflow: hidden;
 }
 
+body::before {
+  content: "";
+  position: fixed;
+  top: -10%;
+  right: -5%;
+  width: 640px;
+  height: 640px;
+  background: radial-gradient(circle, rgba(202, 58, 48, 0.16) 0%, rgba(202, 58, 48, 0) 68%);
+  pointer-events: none;
+  z-index: 0;
+}
+
 .shell {
+  position: relative;
+  z-index: 1;
   display: flex;
   height: 100vh;
 }
@@ -192,7 +211,7 @@ html, body {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.14em;
-  color: var(--gold-mid);
+  color: var(--red-mid);
   margin-bottom: 10px;
 }
 
@@ -206,7 +225,7 @@ html, body {
 }
 
 .view-header h1 em {
-  color: var(--gold-mid);
+  color: var(--red-mid);
   font-style: italic;
 }
 
@@ -253,7 +272,7 @@ html, body {
 
 .wizard-toggle {
   width: 100%;
-  background: linear-gradient(135deg, rgba(217, 182, 101,0.12), rgba(217, 182, 101,0.03));
+  background: linear-gradient(135deg, rgba(202, 58, 48, 0.12), rgba(202, 58, 48, 0.03));
   border: none;
   color: var(--text);
   padding: 14px 18px;
@@ -293,7 +312,7 @@ html, body {
 
 .chip.selected {
   border-color: var(--accent);
-  background: rgba(217, 182, 101, 0.16);
+  background: rgba(202, 58, 48, 0.16);
 }
 
 /* Scene engine picker (mirrors provider-btn) */
@@ -320,7 +339,7 @@ html, body {
 
 .engine-btn.active {
   border-color: var(--accent);
-  background: rgba(217, 182, 101, 0.08);
+  background: rgba(202, 58, 48, 0.08);
 }
 
 /* Dropzone */
@@ -469,7 +488,7 @@ textarea:focus, input:focus {
 
 .provider-btn.active {
   border-color: var(--accent);
-  background: rgba(217, 182, 101, 0.08);
+  background: rgba(202, 58, 48, 0.08);
 }
 
 .provider-name { font-size: 13.5px; font-weight: 600; }
@@ -477,7 +496,7 @@ textarea:focus, input:focus {
 
 .primary-btn {
   width: 100%;
-  background: linear-gradient(180deg, var(--gold-hi) 0%, var(--gold-mid) 48%, var(--gold-lo) 100%);
+  background: linear-gradient(180deg, var(--red-hi) 0%, var(--red-mid) 48%, var(--red-lo) 100%);
   color: var(--accent-ink);
   border: none;
   border-radius: 100px;
@@ -485,12 +504,12 @@ textarea:focus, input:focus {
   font-size: 14px;
   font-weight: 650;
   cursor: pointer;
-  box-shadow: 0 6px 20px rgba(217, 182, 101, 0.22);
+  box-shadow: 0 6px 20px rgba(202, 58, 48, 0.22);
   transition: box-shadow .15s ease, transform .15s ease;
 }
 
 .primary-btn:hover:not(:disabled) {
-  box-shadow: 0 8px 26px rgba(217, 182, 101, 0.34);
+  box-shadow: 0 8px 26px rgba(202, 58, 48, 0.34);
   transform: translateY(-1px);
 }
 
@@ -516,7 +535,7 @@ textarea:focus, input:focus {
 }
 
 .secondary-btn:hover {
-  border-color: var(--border-gold);
+  border-color: var(--border-accent);
 }
 
 .muted { color: var(--muted); }
@@ -704,7 +723,7 @@ textarea:focus, input:focus {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: linear-gradient(135deg, rgba(217, 182, 101,0.14), rgba(217, 182, 101,0.04));
+  background: linear-gradient(135deg, rgba(202, 58, 48, 0.14), rgba(202, 58, 48, 0.04));
   border: 1px solid var(--accent);
   border-radius: var(--radius-sm);
   padding: 10px 14px;
