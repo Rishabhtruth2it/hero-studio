@@ -53,6 +53,20 @@ SmartScreen warning for the same reason: **More info** → **Run anyway**.
 - Everything else (background removal, the video API calls, captions) works
   identically on every platform.
 
+### Desktop app (admin machine only)
+
+`desktop/build-app.sh` builds a real `Hero Studio.app` (with the RAD logo as
+its icon) and installs it to `/Applications` — launchable from Spotlight,
+Launchpad, or the Dock like any native app, no terminal needed after the
+first build. It's meant for the maintainer's own machine (where
+`RAD_ADMIN_TOKEN` already lives), not something to hand to clients — they
+use `Launch Hero Studio.command`/`.bat` instead. Re-run the script any time
+to refresh the installed app in place:
+
+```bash
+bash desktop/build-app.sh
+```
+
 ## Using the app
 
 **Create**: drop in a product photo, either answer the ✨ four-question
@@ -72,9 +86,12 @@ paying.
 
 - **One key per client**, generated manually in the **Admin** tab (only
   visible on the maintainer's own install — see below).
-- **One machine per key**: the app shows the client a Machine ID in
-  Settings; they send it to you once; you paste it in when activating their
-  license in Admin. From then on that key only works on that device.
+- **One machine per key, by default**: the app shows the client a Machine ID
+  in Settings; they send it to you once; you paste it in when activating
+  their license in Admin. From then on that key only works on that device.
+  Uncheck **"Lock this license to one device"** when adding a license (or
+  hit **Allow any device** on an existing one) to skip this entirely for
+  people you trust on multiple machines.
 - **Kill switch**: revoke a single client's key, or flip the global kill
   switch to block every non-admin install at once.
 
@@ -82,22 +99,10 @@ The Admin tab only appears on an install that has `RAD_ADMIN_TOKEN` set in
 its own `.env` (a GitHub token with `gist` scope) — that variable must
 **never** go into a client's `.env`. See `.env.example` for setup.
 
-**Outstanding setup step**: the license store is a secret GitHub Gist that
-doesn't exist yet — creating it got blocked by Claude Code's own safety
-classifier (treated as "public data upload"), so run this yourself once:
-
-```bash
-echo '{"global_kill": false, "licenses": {}}' > licenses.json
-gh gist create licenses.json --desc "Hero Studio license store"
-```
-
-Take the resulting URL, turn it into a raw URL
-(`https://gist.githubusercontent.com/<you>/<gist-id>/raw/licenses.json`),
-and put it in `LICENSE_GIST_URL` in your own `.env` (and mention it in the
-setup instructions you give clients — it goes in their `.env` too, it's
-read-only and safe to share). Then set your own `RAD_ADMIN_TOKEN` to a
-GitHub token with `gist` scope (`gh auth token` if you're logged in via
-`gh auth login`, or a fine-grained PAT with just the Gist permission).
+The license store itself is a secret GitHub Gist (`LICENSE_GIST_URL` in
+`.env`) — already created for the current admin install. Setting up a
+*different* machine as an additional admin means copying both
+`RAD_ADMIN_TOKEN` and `LICENSE_GIST_URL` into that machine's `.env`.
 
 ## Updates
 

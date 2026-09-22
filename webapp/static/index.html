@@ -259,7 +259,14 @@
             <input id="admin-new-client" type="text" placeholder="Client name" />
             <input id="admin-new-key" type="text" placeholder="License key (leave blank to auto-generate)" />
           </div>
-          <input id="admin-new-machine" type="text" placeholder="Machine ID (paste what the client sent you, or leave blank for unlocked/trial)" />
+
+          <label class="switch-row">
+            <input type="checkbox" id="admin-lock-toggle" checked />
+            <span>Lock this license to one device</span>
+          </label>
+          <p class="muted small" id="admin-lock-note">Standard for clients — the key only works on the machine whose ID you enter below.</p>
+
+          <input id="admin-new-machine" type="text" placeholder="Machine ID (paste what the client sent you)" />
           <button class="secondary-btn" id="admin-add-license">Add license</button>
         </div>
 

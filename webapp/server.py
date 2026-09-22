@@ -28,6 +28,11 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 app = FastAPI(title="Hero Studio")
 
 
+@app.get("/health")
+def health():
+    return {"ok": True}
+
+
 def _mask(value: str | None) -> str | None:
     return f"•••• {value[-4:]}" if value else None
 

@@ -461,7 +461,7 @@ async function loadAdmin() {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${lic.client || "—"}</td>
-      <td><code>${key}</code>${lic.machine_id ? `<br><span class="muted small">🔒 ${lic.machine_id}</span>` : '<br><span class="muted small">unlocked</span>'}</td>
+      <td><code>${key}</code>${lic.machine_id ? `<br><span class="muted small">🔒 ${lic.machine_id}</span>` : '<br><span class="muted small">♾️ Any device</span>'}</td>
       <td><span class="status-pill ${lic.status}">${lic.status}</span></td>
       <td></td>
     `;
@@ -495,7 +495,7 @@ async function loadAdmin() {
       actionsCell.appendChild(lockBtn);
     } else {
       const unlockBtn = document.createElement("button");
-      unlockBtn.textContent = "Unlock";
+      unlockBtn.textContent = "Allow any device";
       unlockBtn.addEventListener("click", async () => {
         await fetch("/api/admin/licenses", {
           method: "POST",
@@ -511,10 +511,25 @@ async function loadAdmin() {
   }
 }
 
+const lockToggle = document.getElementById("admin-lock-toggle");
+const lockNote = document.getElementById("admin-lock-note");
+const newMachineInput = document.getElementById("admin-new-machine");
+
+function updateLockToggleUI() {
+  const locked = lockToggle.checked;
+  newMachineInput.disabled = !locked;
+  newMachineInput.hidden = !locked;
+  lockNote.textContent = locked
+    ? "Standard for clients — the key only works on the machine whose ID you enter below."
+    : "This license will work on any machine — use for people you trust with multiple devices, or don't want to bother with device locking.";
+}
+lockToggle.addEventListener("change", updateLockToggleUI);
+updateLockToggleUI();
+
 document.getElementById("admin-add-license").addEventListener("click", async () => {
   const client = document.getElementById("admin-new-client").value.trim();
   let key = document.getElementById("admin-new-key").value.trim();
-  const machineId = document.getElementById("admin-new-machine").value.trim();
+  const machineId = lockToggle.checked ? newMachineInput.value.trim() : "";
   if (!client) { alert("Client name is required."); return; }
   if (!key) key = crypto.randomUUID().replace(/-/g, "").slice(0, 20).toUpperCase();
 
@@ -525,7 +540,9 @@ document.getElementById("admin-add-license").addEventListener("click", async () 
   });
   document.getElementById("admin-new-client").value = "";
   document.getElementById("admin-new-key").value = "";
-  document.getElementById("admin-new-machine").value = "";
+  newMachineInput.value = "";
+  lockToggle.checked = true;
+  updateLockToggleUI();
   loadAdmin();
 });
 
